@@ -1,8 +1,10 @@
+import streamlit as st
+import pandas as pd
+
 # ---------------------------------------------------------
 # MEMORIA DE COLABORADORES (DNI COMO CLAVE ÚNICA)
 # ---------------------------------------------------------
 if 'empleados_db' not in st.session_state:
-    # Base de datos inicial de ejemplo con DNI, Nombre y Sueldo Base
     st.session_state.empleados_db = {
         "45871234": {"nombre": "Juan Pérez", "sueldo": 2500.0},
         "71234567": {"nombre": "María Gómez", "sueldo": 3000.0},
