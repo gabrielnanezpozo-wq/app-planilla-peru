@@ -67,14 +67,12 @@ def generar_pdf_boleta(datos_emp, resumen_pago):
     
     elements = []
     
-    # Cabecera
     elements.append(Paragraph("<b>AGROEXPORT S.A.C.</b>", title_style))
     elements.append(Paragraph("RUC: 20123456789 | R.M. 091-92-TR", subtitle_style))
     elements.append(Paragraph("<b>BOLETA DE PAGO DE REMUNERACIONES</b>", ParagraphStyle('Sub', parent=title_style, fontSize=12, leading=15)))
     elements.append(Spacer(1, 10))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#0d6efd"), spaceAfter=10))
     
-    # Datos Colaborador
     data_trab = [
         [Paragraph("<b>DNI:</b>", bold_style), Paragraph(datos_emp['dni'], normal_style), Paragraph("<b>Fecha Ingreso:</b>", bold_style), Paragraph(datos_emp['ingreso'], normal_style)],
         [Paragraph("<b>Trabajador:</b>", bold_style), Paragraph(datos_emp['nombre'], normal_style), Paragraph("<b>Fecha Cese:</b>", bold_style), Paragraph(datos_emp['cese'] if datos_emp['cese'] else "ACTIVO", normal_style)],
@@ -91,7 +89,6 @@ def generar_pdf_boleta(datos_emp, resumen_pago):
     elements.append(t_trab)
     elements.append(Spacer(1, 15))
     
-    # Desglose de Pagos
     data_conceptos = [
         [Paragraph("<b>CONCEPTO / INGRESOS</b>", bold_style), Paragraph("<b>MONTO (S/)</b>", bold_style), Paragraph("<b>DESCUENTOS / RETENCIONES</b>", bold_style), Paragraph("<b>MONTO (S/)</b>", bold_style)],
         [Paragraph("Sueldo Básico + Asig. Fam.", normal_style), Paragraph(f"{resumen_pago['sueldo_bruto_init']:.2f}", normal_style), Paragraph("Descuento Faltas / Tardanzas", normal_style), Paragraph(f"{resumen_pago['desc_asistencia']:.2f}", normal_style)],
@@ -110,7 +107,6 @@ def generar_pdf_boleta(datos_emp, resumen_pago):
     elements.append(t_con)
     elements.append(Spacer(1, 15))
     
-    # Neto final
     data_neto = [[Paragraph("<b>NETO A RECIBIR:</b>", ParagraphStyle('N1', parent=bold_style, fontSize=11)), Paragraph(f"<b>S/ {resumen_pago['sueldo_neto']:.2f}</b>", ParagraphStyle('N2', parent=bold_style, fontSize=11, textColor=colors.HexColor("#0d6efd")))]]
     t_neto = Table(data_neto, colWidths=[380, 160])
     t_neto.setStyle(TableStyle([
@@ -137,14 +133,12 @@ def generar_pdf_liquidacion(datos_emp, liq):
     
     elements = []
     
-    # Cabecera
     elements.append(Paragraph("<b>AGROEXPORT S.A.C.</b>", title_style))
     elements.append(Paragraph("RUC: 20123456789 | R.M. 091-92-TR", subtitle_style))
     elements.append(Paragraph("<b>LIQUIDACIÓN DE BENEFICIOS SOCIALES (TRUNCOS)</b>", ParagraphStyle('Sub', parent=title_style, fontSize=12, leading=15)))
     elements.append(Spacer(1, 10))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#198754"), spaceAfter=10))
     
-    # Datos Trabajo
     data_trab = [
         [Paragraph("<b>DNI:</b>", bold_style), Paragraph(datos_emp['dni'], normal_style), Paragraph("<b>Fecha Ingreso:</b>", bold_style), Paragraph(datos_emp['ingreso'], normal_style)],
         [Paragraph("<b>Trabajador:</b>", bold_style), Paragraph(datos_emp['nombre'], normal_style), Paragraph("<b>Fecha Cese:</b>", bold_style), Paragraph(datos_emp['cese'], normal_style)],
@@ -160,7 +154,6 @@ def generar_pdf_liquidacion(datos_emp, liq):
     elements.append(t_trab)
     elements.append(Spacer(1, 15))
     
-    # Conceptos Liquidación
     data_liq = [
         [Paragraph("<b>BENEFICIO SOCIAL TRUNCO</b>", bold_style), Paragraph("<b>MONTO A BONAR (S/)</b>", bold_style)],
         [Paragraph("Compensación por Tiempo de Servicios (CTS Trunca)", normal_style), Paragraph(f"S/ {liq['cts']:.2f}", normal_style)],
@@ -280,4 +273,262 @@ with tab1:
                 st.session_state.empleados_db[nuevo_dni] = {
                     "nombre": nuevo_nombre, 
                     "sueldo": nuevo_sueldo,
-                    "ingreso": str
+                    "ingreso": str(fecha_ingreso_reg), 
+                    "cese": str(fecha_cese_reg) if tiene_cese else ""
+                }
+                st.success(f"¡Trabajador {nuevo_nombre} guardado correctamente!")
+                st.rerun()
+            else:
+                st.warning("Ingresa un DNI válido de 8 dígitos y el nombre completo.")
+
+    st.markdown("---")
+    st.markdown("#### 📋 Listado de Personal Registrado")
+    if st.session_state.empleados_db:
+        df_emps = pd.DataFrame.from_dict(st.session_state.empleados_db, orient='index').reset_index()
+        df_emps.columns = ["DNI", "Nombre Completo", "Sueldo Base (S/)", "Fecha Ingreso", "Fecha Cese"]
+        st.dataframe(df_emps, use_container_width=True)
+
+# ---------------------------------------------------------
+# PESTAÑA 2: TAREO DIARIO Y VALIDACIONES
+# ---------------------------------------------------------
+with tab2:
+    st.markdown("### Control de Asistencia, Tardanzas y DSO Temporal")
+    lista_opciones = [f"{dni} - {info['nombre']}" for dni, info in st.session_state.empleados_db.items()]
+    
+    if lista_opciones:
+        seleccion_actual = st.selectbox("Seleccione al colaborador:", lista_opciones, key="sel_colab_tareo")
+        dni_activo = seleccion_actual.split(" - ")[0]
+        datos_trabajador = st.session_state.empleados_db[dni_activo]
+        nombre_colaborador = datos_trabajador["nombre"]
+        
+        st.info(f"👤 **Colaborador Activo:** {nombre_colaborador} | 🆔 **DNI:** {dni_activo} | 📅 **Contrato:** {datos_trabajador['ingreso']} al {datos_trabajador['cese'] if datos_trabajador['cese'] else 'Activo'}")
+        
+        col_t1, col_t2, col_t3 = st.columns(3)
+        
+        with col_t1:
+            estado_asistencia = st.selectbox("Condición / Incidencia:", [
+                "Asistencia Normal (DSO / Labor)",
+                "Falta Injustificada",
+                "Tardanza",
+                "Descanso Médico",
+                "Permiso con Goce",
+                "Vacaciones",
+                "Suspensión",
+                "Trabajo en Día de Descanso (100%)",
+                "DSO Temporal (Sin labor / No remunerado)"
+            ])
+            
+            if estado_asistencia == "DSO Temporal (Sin labor / No remunerado)":
+                st.markdown("📅 **Rango de fechas para DSO Temporal:**")
+                fecha_inicio_dso = st.date_input("Fecha de Inicio:", value=date.today(), key="dso_ini")
+                fecha_fin_dso = st.date_input("Fecha de Fin:", value=date.today(), key="dso_fin")
+            else:
+                fecha_registro = st.date_input("Fecha de Asistencia:", value=date.today(), key="asist_unica")
+
+        with col_t2:
+            minutos_tardanza_ingresados = 0
+            horas_extras_ingresadas = 0.0
+            porcentaje_he = 25
+            
+            if estado_asistencia in ["Falta Injustificada", "Descanso Médico", "Vacaciones", "Suspensión", "DSO Temporal (Sin labor / No remunerado)"]:
+                horas_trabajadas = 0.0
+                st.warning("ℹ️ Registro automático en 0.0 hrs.")
+            elif estado_asistencia == "Tardanza":
+                horas_trabajadas = 8.0
+                minutos_tardanza_ingresados = st.number_input("Minutos de tardanza:", min_value=1, max_value=300, value=15, step=1)
+            elif estado_asistencia == "Trabajo en Día de Descanso (100%)":
+                horas_trabajadas = st.number_input("Horas laboradas en día libre:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
+            else:
+                horas_trabajadas = st.number_input("Horas laboradas:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
+                
+            with st.expander("➕ Registrar Horas Extras"):
+                horas_extras_ingresadas = st.number_input("Cantidad de Horas Extras:", min_value=0.0, max_value=4.0, value=0.0, step=0.5)
+                porcentaje_he = st.selectbox("Porcentaje HE:", [25, 35, 50, 100], index=0)
+
+        with col_t3:
+            archivo_sustento = st.file_uploader("Subir sustento (PDF/Imagen):", type=["pdf", "png", "jpg", "jpeg"])
+            nombre_archivo = archivo_sustento.name if archivo_sustento else "Sin sustento"
+
+        if st.button("Registrar / Actualizar Asistencia en el Tareo", type="primary"):
+            f_ingreso_emp = datetime.strptime(datos_trabajador["ingreso"], "%Y-%m-%d").date()
+            f_cese_emp = datetime.strptime(datos_trabajador["cese"], "%Y-%m-%d").date() if datos_trabajador["cese"] else None
+            
+            if estado_asistencia == "DSO Temporal (Sin labor / No remunerado)":
+                if fecha_inicio_dso <= fecha_fin_dso:
+                    if fecha_inicio_dso < f_ingreso_emp or (f_cese_emp and fecha_fin_dso > f_cese_emp):
+                        st.error(f"❌ Error de validación: El rango ({fecha_inicio_dso} a {fecha_fin_dso}) está fuera del periodo laboral activo del trabajador ({datos_trabajador['ingreso']} al {datos_trabajador['cese'] if datos_trabajador['cese'] else 'Presente'}).")
+                    else:
+                        for f_item in pd.date_range(start=fecha_inicio_dso, end=fecha_fin_dso):
+                            str_f = f_item.strftime("%Y-%m-%d")
+                            idx_ex = next((i for i, r in enumerate(st.session_state.registros_tareo) if r["DNI"] == dni_activo and r["Fecha"] == str_f), -1)
+                            nuevo_item = {
+                                "DNI": dni_activo, "Colaborador": nombre_colaborador, "Fecha": str_f,
+                                "Condición": estado_asistencia, "Horas": 0.0, "Min_Tardanza": 0,
+                                "Horas_Extras": 0.0, "Porcentaje_HE": 25, "Sustento": nombre_archivo
+                            }
+                            if idx_ex != -1: st.session_state.registros_tareo[idx_ex] = nuevo_item
+                            else: st.session_state.registros_tareo.append(nuevo_item)
+                        st.success(f"¡Rango de DSO Temporal registrado con éxito del {fecha_inicio_dso} al {fecha_fin_dso}!")
+                        st.rerun()
+                else:
+                    st.error("La fecha de inicio no puede ser posterior a la fecha de fin.")
+            else:
+                if fecha_registro < f_ingreso_emp or (f_cese_emp and fecha_registro > f_cese_emp):
+                    st.error(f"❌ Error de validación: La fecha {fecha_registro} está fuera del periodo laboral activo.")
+                else:
+                    idx_ex = next((i for i, r in enumerate(st.session_state.registros_tareo) if r["DNI"] == dni_activo and r["Fecha"] == str(fecha_registro)), -1)
+                    nuevo_item = {
+                        "DNI": dni_activo, "Colaborador": nombre_colaborador, "Fecha": str(fecha_registro),
+                        "Condición": estado_asistencia, "Horas": horas_trabajadas,
+                        "Min_Tardanza": minutos_tardanza_ingresados if estado_asistencia == "Tardanza" else 0,
+                        "Horas_Extras": horas_extras_ingresadas, "Porcentaje_HE": porcentaje_he, "Sustento": nombre_archivo
+                    }
+                    if idx_ex != -1: st.session_state.registros_tareo[idx_ex] = nuevo_item
+                    else: st.session_state.registros_tareo.append(nuevo_item)
+                    st.success(f"¡Asistencia registrada para el {fecha_registro}!")
+                    st.rerun()
+    else:
+        st.warning("Primero registra colaboradores en la Pestaña 1.")
+
+# ---------------------------------------------------------
+# PESTAÑA 3: RESUMEN MONETARIO Y DESCARGA DE PDF INDIVIDUAL
+# ---------------------------------------------------------
+with tab3:
+    st.markdown("### Cálculo Monetario Individual y Emisión de Documentos en PDF")
+    
+    if lista_opciones:
+        seleccion_calculo = st.selectbox("Seleccione el colaborador a consultar:", lista_opciones, key="sel_calculo_mon")
+        dni_calc = seleccion_calculo.split(" - ")[0]
+        datos_emp = st.session_state.empleados_db[dni_calc]
+        datos_emp['dni'] = dni_calc
+        
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            asig_fam_check = st.checkbox("Incluir Asignación Familiar (S/ 102.50)", value=False, key="af_calc")
+            seguro_vida_check = st.checkbox("Aplica Seguro de Vida Ley (~0.6%)", value=True, key="sv_calc")
+        with col_c2:
+            sistema_pension = st.selectbox("Sistema de Pensiones:", ["ONP (13%)", "AFP Integra (Flujo)", "AFP Prima (Flujo)", "AFP Habitat (Flujo)", "AFP Profuturo (Flujo)", "Exonerado"], key="p_calc")
+
+        sueldo_base = float(datos_emp["sueldo"])
+        monto_af = 102.50 if asig_fam_check else 0.0
+        sueldo_bruto_init = sueldo_base + monto_af
+        
+        faltas_injustificadas = 0
+        total_minutos_tardanza = 0
+        total_he_25 = 0.0
+        total_he_35 = 0.0
+        dias_descanso_trab = 0
+        
+        for reg in st.session_state.registros_tareo:
+            if reg["DNI"] == dni_calc:
+                cond = reg["Condición"]
+                if cond == "Falta Injustificada": faltas_injustificadas += 1
+                elif cond == "Tardanza": total_minutos_tardanza += reg.get("Min_Tardanza", 0)
+                elif cond == "Trabajo en Día de Descanso (100%)": dias_descanso_trab += 1
+                
+                he = reg.get("Horas_Extras", 0.0)
+                pct = reg.get("Porcentaje_HE", 25)
+                if he > 0:
+                    if pct == 25: total_he_25 += he
+                    else: total_he_35 += he
+
+        valor_dia = sueldo_base / 30.0
+        valor_hora = sueldo_base / 240.0
+        valor_minuto = sueldo_base / 14400.0
+        
+        desc_faltas = valor_dia * faltas_injustificadas
+        desc_tardanzas = valor_minuto * total_minutos_tardanza
+        desc_asistencia = desc_faltas + desc_tardanzas
+        
+        pago_he = (total_he_25 * valor_hora * 1.25) + (total_he_35 * valor_hora * 1.35)
+        pago_descanso = valor_dia * dias_descanso_trab
+        pago_adicional = pago_he + pago_descanso
+        
+        sueldo_bruto_ajustado = max(0.0, sueldo_bruto_init - desc_asistencia + pago_adicional)
+        
+        desc_pension = sueldo_bruto_ajustado * 0.13 if "ONP" in sistema_pension else (sueldo_bruto_ajustado * 0.1115 if "AFP" in sistema_pension else 0.0)
+        desc_seguro = sueldo_bruto_ajustado * 0.006 if seguro_vida_check else 0.0
+        total_descuentos = desc_asistencia + desc_pension + desc_seguro
+        sueldo_neto = sueldo_bruto_ajustado - desc_pension - desc_seguro
+
+        resumen_pago = {
+            "sueldo_bruto_init": sueldo_bruto_init,
+            "asig_fam": monto_af,
+            "desc_asistencia": desc_asistencia,
+            "pago_adicional": pago_adicional,
+            "sueldo_bruto_ajustado": sueldo_bruto_ajustado,
+            "desc_pension": desc_pension,
+            "desc_seguro": desc_seguro,
+            "total_descuentos": total_descuentos,
+            "sueldo_neto": sueldo_neto
+        }
+
+        st.markdown("---")
+        st.markdown("#### 💵 Resumen Mensual del Colaborador")
+        col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+        col_m1.metric("Sueldo Bruto Inicial", f"S/ {sueldo_bruto_init:.2f}")
+        col_m2.metric("Descuentos Asistencia", f"- S/ {desc_asistencia:.2f}")
+        col_m3.metric("Adicionales", f"+ S/ {pago_adicional:.2f}")
+        col_m4.metric("Descuentos Ley", f"- S/ {(desc_pension + desc_seguro):.2f}")
+        col_m5.metric("Neto Mensual", f"S/ {sueldo_neto:.2f}")
+
+        pdf_boleta_bytes = generar_pdf_boleta(datos_emp, resumen_pago)
+        st.download_button(
+            label="📄 Descargar Boleta de Pago Mensual (PDF)",
+            data=pdf_boleta_bytes,
+            file_name=f"boleta_{dni_calc}_{datos_emp['nombre'].replace(' ', '_')}.pdf",
+            mime="application/pdf",
+            type="primary"
+        )
+
+        st.markdown("---")
+        st.markdown("#### 📐 Cálculo de Liquidación de Beneficios Sociales (Si aplica Cese)")
+        
+        if datos_emp['cese']:
+            st.warning(f"⚠️ Trabajador cesado con fecha oficial de salida: {datos_emp['cese']}")
+            try:
+                f_ing = datetime.strptime(datos_emp['ingreso'], "%Y-%m-%d")
+                f_ces = datetime.strptime(datos_emp['cese'], "%Y-%m-%d")
+                dias_totales_servicio = (f_ces - f_ing).days + 1
+                
+                rem_computable_cts = sueldo_bruto_init + (sueldo_bruto_init / 6.0)
+                dias_semestre_cts = dias_totales_servicio % 180 if dias_totales_servicio > 180 else dias_totales_servicio
+                cts_truncas = (rem_computable_cts / 360.0) * dias_semestre_cts
+                
+                meses_completos_grati = (f_ces.month - 1) % 6
+                grati_truncas = (sueldo_bruto_init / 6.0) * meses_completos_grati + (sueldo_bruto_init / 180.0) * f_ces.day
+                bonif_ley_grati = grati_truncas * 0.09
+                grati_total = grati_truncas + bonif_ley_grati
+                
+                vacaciones_truncas = (sueldo_base / 360.0) * (dias_totales_servicio % 365)
+                total_liq = cts_truncas + grati_total + vacaciones_truncas
+                
+                resumen_liq = {
+                    "dias_servicio": dias_totales_servicio,
+                    "rem_computable": rem_computable_cts,
+                    "cts": cts_truncas,
+                    "grati_tot": grati_total,
+                    "vacaciones": vacaciones_truncas,
+                    "total": total_liq
+                }
+                
+                col_l1, col_l2, col_l3, col_l4 = st.columns(4)
+                col_l1.metric("CTS Truncas", f"S/ {cts_truncas:.2f}")
+                col_l2.metric("Gratificación + Bonif.", f"S/ {grati_total:.2f}")
+                col_l3.metric("Vacaciones Truncas", f"S/ {vacaciones_truncas:.2f}")
+                col_l4.metric("Total Liquidación Neta", f"S/ {total_liq:.2f}")
+                
+                pdf_liq_bytes = generar_pdf_liquidacion(datos_emp, resumen_liq)
+                st.download_button(
+                    label="📄 Descargar Hoja de Liquidación de Beneficios (PDF)",
+                    data=pdf_liq_bytes,
+                    file_name=f"liquidacion_{dni_calc}_{datos_emp['nombre'].replace(' ', '_')}.pdf",
+                    mime="application/pdf",
+                    type="primary"
+                )
+            except Exception as e:
+                st.error(f"Error al calcular liquidación: {e}")
+        else:
+            st.info("💡 El colaborador se encuentra en estado ACTIVO. Si deseas emitir su liquidación, registra su Fecha de Cese en la Pestaña 1.")
+    else:
+        st.warning("No hay colaboradores registrados para consultar.")
