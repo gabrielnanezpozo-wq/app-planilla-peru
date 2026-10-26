@@ -503,7 +503,7 @@ with tab3:
         st.download_button(
             label=f"📄 Descargar Boleta de Pago ({periodicidad}) en PDF",
             data=pdf_boleta_bytes,
-            file_name=f"boleta_{periodicidad.lower()}_{dni_calc}_{datos_emp['RIBOX'].replace(' ', '_')}.pdf",
+            file_name=f"boleta_{periodicidad.lower()}_{dni_calc}_{datos_emp['nombre'].replace(' ', '_')}.pdf",
             mime="application/pdf",
             type="primary"
         )
