@@ -180,4 +180,28 @@ with col_t2:
         horas_trabajadas = st.number_input("Horas laboradas:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
         
     with st.expander("➕ Registrar Horas Extras en este día"):
-        horas_extras_ingresadas = st.number_input("Cantidad de Horas Extras:", min_value=0.0, max_value=4.0, value=0.0,
+        horas_extras_ingresadas = st.number_input("Cantidad de Horas Extras:", min_value=0.0, max_value=4.0, value=0.0, step=0.5)
+        porcentaje_he = st.selectbox("Porcentaje de pago HE:", [25, 35, 50, 100], index=0)
+
+with col_t3:
+    archivo_sustento = st.file_uploader("Subir sustento (PDF / Imagen):", type=["pdf", "png", "jpg", "jpeg"])
+    nombre_archivo = archivo_sustento.name if archivo_sustento else "Sin sustento"
+
+if st.button("Registrar / Actualizar Asistencia en el Tareo", type="primary"):
+    if dni_activo:
+        f_ingreso_emp = datetime.strptime(datos_trabajador["ingreso"], "%Y-%m-%d").date()
+        f_cese_emp = datetime.strptime(datos_trabajador["cese"], "%Y-%m-%d").date() if datos_trabajador["cese"] else None
+        
+        if estado_asistencia == "DSO Temporal (Sin labor / No remunerado)":
+            if fecha_inicio_dso <= fecha_fin_dso:
+                if fecha_inicio_dso < f_ingreso_emp or (f_cese_emp and fecha_fin_dso > f_cese_emp):
+                    st.error(f"❌ Error de validación: El rango de fechas ({fecha_inicio_dso} a {fecha_fin_dso}) está fuera del periodo laboral activo del trabajador ({datos_trabajador['ingreso']} al {datos_trabajador['cese'] if datos_trabajador['cese'] else 'Presente'}).")
+                else:
+                    fechas_rango = pd.date_range(start=fecha_inicio_dso, end=fecha_fin_dso)
+                    for f_item in fechas_rango:
+                        str_f = f_item.strftime("%Y-%m-%d")
+                        idx_existente = -1
+                        for idx, reg in enumerate(st.session_state.registros_tareo):
+                            if reg["DNI"] == dni_activo and reg["Fecha"] == str_f:
+                                idx_existente = idx
+                                break
