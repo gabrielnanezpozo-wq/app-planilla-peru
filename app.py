@@ -21,7 +21,7 @@ if 'registros_tareo' not in st.session_state:
 # CABECERA GENERAL
 # ---------------------------------------------------------
 st.markdown("## 🏢 Sistema de Gestor de Planilla y Tareo Mensual (Perú)")
-st.markdown("Control de asistencia por DNI, regímenes laborales, subida de sustentos y cálculo de planilla.")
+st.markdown("Control de asistencia por DNI, regímenes laborales, faltas y cálculo automático de descuentos por tardanzas.")
 st.write("---")
 
 # =========================================================
@@ -49,7 +49,6 @@ with st.expander("➕ Registrar nuevo trabajador en la Base de Datos (DNI único
         else:
             st.warning("Ingresa un DNI válido de 8 dígitos y el nombre completo.")
 
-# Selector principal por DNI
 lista_opciones = [f"{dni} - {info['nombre']}" for dni, info in st.session_state.empleados_db.items()]
 
 if lista_opciones:
@@ -100,10 +99,15 @@ with col_t1:
     ])
 
 with col_t2:
-    # Lógica inteligente de horas según la condición
+    minutos_tardanza_ingresados = 0
+    
     if estado_asistencia in ["Falta Injustificada", "Descanso Médico", "Vacaciones", "Suspensión"]:
         horas_trabajadas = 0.0
         st.warning(f"ℹ️ Incidencia '{estado_asistencia}': Horas automáticas en 0.0 hrs.")
+    elif estado_asistencia == "Tardanza":
+        horas_trabajadas = 8.0  # Asiste pero con retraso
+        minutos_tardanza_ingresados = st.number_input("Minutos de tardanza en el día:", min_value=1, max_value=300, value=15, step=1)
+        st.info(f"⏱️ Se registrarán {minutos_tardanza_ingresados} min de tardanza.")
     else:
         horas_trabajadas = st.number_input("Horas laboradas en el día:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
 
@@ -119,6 +123,7 @@ if st.button("Registrar Asistencia en el Tareo", type="primary"):
             "Fecha": str(fecha_registro),
             "Condición": estado_asistencia,
             "Horas": horas_trabajadas,
+            "Min_Tardanza": minutos_tardanza_ingresados if estado_asistencia == "Tardanza" else 0,
             "Sustento": nombre_archivo
         })
         st.success(f"¡Asistencia de {nombre_colaborador} registrada correctamente para el {fecha_registro}!")
@@ -128,47 +133,62 @@ if st.button("Registrar Asistencia en el Tareo", type="primary"):
 st.write("---")
 
 # =========================================================
-# SECCIÓN 3: CÁLCULO DE PLANILLA Y PAGO MENSUAL
+# SECCIÓN 3: CÁLCULO DE PLANILLA Y PAGO MENSUAL (CON DESCUENTOS)
 # =========================================================
 st.markdown("### 3. 📊 Resumen Acumulado y Cálculo del Pago Mensual")
 
-# Cálculos base peruanos
+# 1. Cálculo base de ingresos
 monto_asig_fam = 102.50 if asig_familiar else 0.0
 sueldo_bruto_total = sueldo_base + monto_asig_fam
 
-# Descuento de ley aproximado
+# 2. Contar faltas injustificadas y acumular minutos de tardanza para este DNI activo
+faltas_injustificadas = 0
+total_minutos_tardanza = 0
+
+for reg in st.session_state.registros_tareo:
+    if reg["DNI"] == dni_activo:
+        if reg["Condición"] == "Falta Injustificada":
+            faltas_injustificadas += 1
+        elif reg["Condición"] == "Tardanza":
+            total_minutos_tardanza += reg.get("Min_Tardanza", 0)
+
+# 3. Aplicar descuentos legales
+# - Descuento por faltas: (Sueldo base / 30) por cada falta
+valor_dia = sueldo_base / 30.0
+descuento_faltas = valor_dia * faltas_injustificadas
+
+# - Descuento por tardanzas: (Sueldo base / 14400) por cada minuto acumulado
+valor_minuto = sueldo_base / 14400.0
+descuento_tardanzas = valor_minuto * total_minutos_tardanza
+
+# 4. Sueldo bruto ajustado tras los descuentos operativos
+sueldo_bruto_ajustado = sueldo_bruto_total - descuento_faltas - descuento_tardanzas
+if sueldo_bruto_ajustado < 0:
+    sueldo_bruto_ajustado = 0.0
+
+# 5. Descuento de ley por pensiones calculado sobre el sueldo ajustado
 if "ONP" in sistema_pension:
-    descuento_pension = sueldo_bruto_total * 0.13
+    descuento_pension = sueldo_bruto_ajustado * 0.13
 elif "AFP" in sistema_pension:
-    descuento_pension = sueldo_bruto_total * 0.1115
+    descuento_pension = sueldo_bruto_ajustado * 0.1115
 else:
     descuento_pension = 0.0
 
-sueldo_neto = sueldo_bruto_total - descuento_pension
+sueldo_neto = sueldo_bruto_ajustado - descuento_pension
 
-# Mostrar métricas claras del cálculo al usuario
-col_res1, col_res2, col_res3, col_res4 = st.columns(4)
-col_res1.metric("Sueldo Bruto Base + Asig.", f"S/ {sueldo_bruto_total:.2f}")
-col_res2.metric("Descuento Ley Pensiones", f"- S/ {descuento_pension:.2f}")
-col_res3.metric("Neto a Pagar Estimado", f"S/ {sueldo_neto:.2f}")
-col_res4.metric("Régimen Aplicado", regimen_laboral.split()[0])
+# Mostrar métricas claras en pantalla
+col_res1, col_res2, col_res3, col_res4, col_res5 = st.columns(5)
+col_res1.metric("Sueldo Bruto Inicial", f"S/ {sueldo_bruto_total:.2f}")
+col_res2.metric("Descto. Faltas", f"- S/ {descuento_faltas:.2f}", delta=f"{faltas_injustificadas} falta(s)", delta_color="inverse")
+col_res3.metric("Descto. Tardanzas", f"- S/ {descuento_tardanzas:.2f}", delta=f"{total_minutos_tardanza} min", delta_color="inverse")
+col_res4.metric("Descto. Ley Pensión", f"- S/ {descuento_pension:.2f}")
+col_res5.metric("Neto a Pagar", f"S/ {sueldo_neto:.2f}")
+
+st.info(f"💡 **Detalle de Descuentos para DNI {dni_activo}:** {faltas_injustificadas} falta(s) (Descuento: S/ {descuento_faltas:.2f}) | {total_minutos_tardanza} minuto(s) de tardanza acumulados (Descuento por min: S/ {valor_minuto:.4f} | Total tardanzas: S/ {descuento_tardanzas:.2f}).")
 
 st.markdown("#### Historial y Base de Datos del Tareo Registrado")
 
 if st.session_state.registros_tareo:
     df_tareo = pd.DataFrame(st.session_state.registros_tareo)
     
-    # Filtro opcional para ver solo el DNI activo o todos
-    ver_todos = st.checkbox("Mostrar registros de tareo de todos los colaboradores", value=True)
-    if not ver_todos and dni_activo:
-        df_mostrar = df_tareo[df_tareo["DNI"] == dni_activo]
-    else:
-        df_mostrar = df_tareo
-        
-    st.dataframe(df_mostrar, use_container_width=True)
-    
-    if st.button("🗑️ Limpiar Todo el Historial de Tareo"):
-        st.session_state.registros_tareo = []
-        st.rerun()
-else:
-    st.info("Aún no hay registros de tareo acumulados en el sistema. Utiliza la Sección 2 para empezar a registrar asistencias.")
+    ver_todos =
