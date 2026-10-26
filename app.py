@@ -3,16 +3,25 @@ import pandas as pd
 from datetime import date
 import io
 
-st.set_page_config(page_title="Gestor de Planilla y Tareo - Perú", layout="wide")
+st.set_page_config(page_title="Gestor de Planilla, Tareo y Liquidación - Perú", layout="wide")
 
 # ---------------------------------------------------------
 # MEMORIA DE DATOS (DNI, EMPLEADOS Y TAREO)
 # ---------------------------------------------------------
 if 'empleados_db' not in st.session_state:
     st.session_state.empleados_db = {
-        "75163440": {"nombre": "Oliver Castillo Perales", "sueldo": 1230.0},
-        "45871234": {"nombre": "Juan Pérez", "sueldo": 2500.0},
-        "71234567": {"nombre": "María Gómez", "sueldo": 3000.0}
+        "75163440": {
+            "nombre": "Oliver Castillo Perales", 
+            "sueldo": 1230.0, 
+            "ingreso": str(date(2023, 1, 10)),
+            "cese": ""
+        },
+        "45871234": {
+            "nombre": "Juan Pérez", 
+            "sueldo": 2500.0, 
+            "ingreso": str(date(2022, 5, 15)),
+            "cese": ""
+        }
     }
 
 if 'registros_tareo' not in st.session_state:
@@ -21,18 +30,16 @@ if 'registros_tareo' not in st.session_state:
 # ---------------------------------------------------------
 # CABECERA GENERAL
 # ---------------------------------------------------------
-st.markdown("## 🏢 Sistema de Gestor de Planilla y Tareo Mensual (Perú)")
-st.markdown("Carga masiva por Excel, registro manual, control por DNI, tardanzas y exportación de datos.")
+st.markdown("## 🏢 Sistema Integral de Planilla, Tareo y Liquidación (Perú)")
+st.markdown("Control de asistencia por DNI, corrección automática por fecha, horas extras, CTS, Gratificaciones y Liquidación.")
 st.write("---")
 
 # =========================================================
-# SECCIÓN 1: IMPORTACIÓN, REGISTRO Y SELECCIÓN DE COLABORADORES
+# SECCIÓN 1: REGISTRO Y GESTIÓN DE COLABORADORES
 # =========================================================
-st.markdown("### 1. 👤 Base de Datos de Colaboradores")
+st.markdown("### 1. 👤 Base de Datos y Fechas del Colaborador")
 
-# Opción A: Carga masiva mediante un Excel o CSV de la empresa
 with st.expander("📁 Importar colaboradores desde un archivo Excel / CSV"):
-    st.info("El archivo debe contener columnas con los nombres similares a: 'DNI', 'Nombre' y 'Sueldo'.")
     archivo_excel = st.file_uploader("Sube el archivo de la empresa:", type=["xlsx", "csv"], key="carga_masiva")
     
     if archivo_excel is not None:
@@ -42,13 +49,10 @@ with st.expander("📁 Importar colaboradores desde un archivo Excel / CSV"):
             else:
                 df_carga = pd.read_excel(archivo_excel)
             
-            # Normalizar nombres de columnas a minúsculas por si acaso
             df_carga.columns = [str(c).strip().lower() for c in df_carga.columns]
-            
-            # Buscar columnas equivalentes
             col_dni = next((c for c in df_carga.columns if 'dni' in c or 'documento' in c), None)
-            col_nom = next((c for c in df_carga.columns if 'nom' in c or 'trabajador' in c or 'empleado' in c), None)
-            col_sue = next((c for c in df_carga.columns if 'sueldo' in c or 'basico' in c or 'remuneracion' in c), None)
+            col_nom = next((c for c in df_carga.columns if 'nom' in c or 'trabajador' in c), None)
+            col_sue = next((c for c in df_carga.columns if 'sueldo' in c or 'basico' in c), None)
             
             if col_dni and col_nom:
                 for _, row in df_carga.iterrows():
@@ -59,31 +63,37 @@ with st.expander("📁 Importar colaboradores desde un archivo Excel / CSV"):
                     if len(dni_val) >= 8:
                         st.session_state.empleados_db[dni_val] = {
                             "nombre": nom_val,
-                            "sueldo": sue_val
+                            "sueldo": sue_val,
+                            "ingreso": str(date.today()),
+                            "cese": ""
                         }
-                st.success("¡Colaboradores importados masivamente con éxito desde el archivo!")
+                st.success("¡Colaboradores importados con éxito!")
             else:
-                st.error("No se pudieron detectar las columnas de 'DNI' y 'Nombre' en el archivo. Verifica las cabeceras.")
+                st.error("No se detectaron columnas de DNI y Nombre.")
         except Exception as e:
-            st.error(f"Hubo un error al procesar el archivo: {e}")
+            st.error(f"Error al procesar archivo: {e}")
 
-# Opción B: Registro manual individual
-with st.expander("➕ Registrar nuevo trabajador de forma manual"):
+with st.expander("➕ Registrar o actualizar trabajador de forma manual"):
     col_reg1, col_reg2, col_reg3 = st.columns(3)
     with col_reg1:
         nuevo_dni = st.text_input("DNI (8 dígitos):", max_chars=8, key="reg_dni")
+        fecha_ingreso_reg = st.date_input("Fecha de Ingreso:", value=date(2023, 1, 1), key="reg_ing")
     with col_reg2:
         nuevo_nombre = st.text_input("Nombre Completo:", key="reg_nom")
+        tiene_cese = st.checkbox("¿Trabajador cesado?", key="chk_cese")
     with col_reg3:
-        nuevo_sueldo = st.number_input("Sueldo Base por defecto (S/):", min_value=1025.0, value=1230.0, step=50.0, key="reg_sue")
+        nuevo_sueldo = st.number_input("Sueldo Base (S/):", min_value=1025.0, value=1230.0, step=50.0, key="reg_sue")
+        fecha_cese_reg = st.date_input("Fecha de Cese:", value=date.today(), key="reg_ces") if tiene_cese else ""
     
-    if st.button("Guardar Nuevo Trabajador"):
+    if st.button("Guardar / Actualizar Trabajador"):
         if nuevo_dni and len(nuevo_dni) == 8 and nuevo_nombre:
             st.session_state.empleados_db[nuevo_dni] = {
                 "nombre": nuevo_nombre,
-                "sueldo": nuevo_sueldo
+                "sueldo": nuevo_sueldo,
+                "ingreso": str(fecha_ingreso_reg),
+                "cese": str(fecha_cese_reg) if tiene_cese else ""
             }
-            st.success(f"¡Trabajador {nuevo_nombre} (DNI: {nuevo_dni}) registrado con éxito!")
+            st.success(f"¡Trabajador {nuevo_nombre} guardado correctamente!")
             st.rerun()
         else:
             st.warning("Ingresa un DNI válido de 8 dígitos y el nombre completo.")
@@ -107,22 +117,25 @@ if lista_opciones:
     with col_dt4:
         sistema_pension = st.selectbox("Sistema de Pensiones:", ["ONP (13%)", "AFP Integra (Flujo)", "AFP Prima (Flujo)", "AFP Habitat (Flujo)", "AFP Profuturo (Flujo)", "Exonerado"])
         
-    st.info(f"🆔 **DNI Activo:** {dni_activo} | **Colaborador Seleccionado:** {nombre_colaborador} | **Régimen:** {regimen_laboral}")
+    seguro_vida_ley = st.checkbox("Aplica Seguro de Vida Ley (~0.6%)", value=True)
+    
+    st.info(f"🆔 **DNI:** {dni_activo} | **Ingreso:** {datos_trabajador['ingreso']} | **Cese:** {datos_trabajador['cese'] if datos_trabajador['cese'] else 'Activo'}")
 else:
-    st.warning("No hay trabajadores registrados en la base de datos.")
+    st.warning("No hay trabajadores registrados.")
     dni_activo = ""
     nombre_colaborador = ""
     sueldo_base = 1025.0
     asig_familiar = False
     regimen_laboral = "Regimen General (D. Leg. 728)"
     sistema_pension = "ONP (13%)"
+    seguro_vida_ley = False
 
 st.write("---")
 
 # =========================================================
-# SECCIÓN 2: MÓDULO DE TAREO DIARIO Y SUSTENTO
+# SECCIÓN 2: MÓDULO DE TAREO DIARIO, TARDANZAS Y HORAS EXTRAS
 # =========================================================
-st.markdown("### 2. 📅 Módulo de Tareo Diario e Incidencias")
+st.markdown("### 2. 📅 Módulo de Tareo Diario, Tardanzas y Horas Extras")
 
 col_t1, col_t2, col_t3 = st.columns(3)
 
@@ -140,50 +153,74 @@ with col_t1:
 
 with col_t2:
     minutos_tardanza_ingresados = 0
+    horas_extras_ingresadas = 0.0
+    porcentaje_he = 25  # Por defecto ley peruana primeras 2 horas 25%
     
     if estado_asistencia in ["Falta Injustificada", "Descanso Médico", "Vacaciones", "Suspensión"]:
         horas_trabajadas = 0.0
         st.warning(f"ℹ️ Incidencia '{estado_asistencia}': Horas automáticas en 0.0 hrs.")
     elif estado_asistencia == "Tardanza":
         horas_trabajadas = 8.0
-        minutos_tardanza_ingresados = st.number_input("Minutos de tardanza en el día:", min_value=1, max_value=300, value=15, step=1)
-        st.info(f"⏱️ Se registrarán {minutos_tardanza_ingresados} min de tardanza.")
+        minutos_tardanza_ingresados = st.number_input("Minutos de tardanza:", min_value=1, max_value=300, value=15, step=1)
     else:
-        horas_trabajadas = st.number_input("Horas laboradas en el día:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
+        horas_trabajadas = st.number_input("Horas laboradas:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
+        
+    # Módulo de Horas Extras opcional por día
+    with st.expander("➕ Registrar Horas Extras en este día"):
+        horas_extras_ingresadas = st.number_input("Cantidad de Horas Extras:", min_value=0.0, max_value=4.0, value=0.0, step=0.5)
+        porcentaje_he = st.selectbox("Porcentaje de pago HE:", [25, 35, 50, 100], index=0, help="25% y 35% son los estándar ley (primeras 2h y siguientes).")
 
 with col_t3:
-    archivo_sustento = st.file_uploader("Subir sustento (PDF o Imagen):", type=["pdf", "png", "jpg", "jpeg"])
-    nombre_archivo = archivo_sustento.name if archivo_sustento else "Sin sustento adjunto"
+    archivo_sustento = st.file_uploader("Subir sustento (PDF / Imagen):", type=["pdf", "png", "jpg", "jpeg"])
+    nombre_archivo = archivo_sustento.name if archivo_sustento else "Sin sustento"
 
-if st.button("Registrar Asistencia en el Tareo", type="primary"):
+if st.button("Registrar / Actualizar Asistencia en el Tareo", type="primary"):
     if dni_activo:
-        st.session_state.registros_tareo.append({
+        # CORRECCIÓN DE BUG: Buscar si ya existe un registro para este DNI en esta fecha exacta
+        idx_existente = -1
+        for idx, reg in enumerate(st.session_state.registros_tareo):
+            if reg["DNI"] == dni_activo and reg["Fecha"] == str(fecha_registro):
+                idx_existente = idx
+                break
+        
+        nuevo_item = {
             "DNI": dni_activo,
             "Colaborador": nombre_colaborador,
             "Fecha": str(fecha_registro),
             "Condición": estado_asistencia,
             "Horas": horas_trabajadas,
             "Min_Tardanza": minutos_tardanza_ingresados if estado_asistencia == "Tardanza" else 0,
+            "Horas_Extras": horas_extras_ingresadas,
+            "Porcentaje_HE": porcentaje_he,
             "Sustento": nombre_archivo
-        })
-        st.success(f"¡Asistencia de {nombre_colaborador} registrada correctamente para el {fecha_registro}!")
+        }
+        
+        if idx_existente != -1:
+            # Reemplaza el registro anterior para evitar duplicados o sumas erróneas de faltas/tardanzas
+            st.session_state.registros_tareo[idx_existente] = nuevo_item
+            st.success(f"¡Registro actualizado con éxito para el {fecha_registro} (Se sobrescribió el estado anterior)!")
+        else:
+            st.session_state.registros_tareo.append(nuevo_item)
+            st.success(f"¡Asistencia registrada para {nombre_colaborador} el {fecha_registro}!")
+        st.rerun()
     else:
-        st.warning("Selecciona un colaborador válido antes de registrar.")
+        st.warning("Selecciona un colaborador válido.")
 
 st.write("---")
 
 # =========================================================
-# SECCIÓN 3: CÁLCULO DE PLANILLA Y EXPORTACIÓN A EXCEL
+# SECCIÓN 3: CÁLCULO DE PLANILLA, BENEFICIOS Y LIQUIDACIÓN
 # =========================================================
-st.markdown("### 3. 📊 Resumen Acumulado, Cálculo y Exportación")
+st.markdown("### 3. 📊 Resumen Mensual, Beneficios Sociales y Liquidación")
 
-# 1. Cálculo base de ingresos
 monto_asig_fam = 102.50 if asig_familiar else 0.0
 sueldo_bruto_total = sueldo_base + monto_asig_fam
 
-# 2. Contar faltas y tardanzas para el DNI activo
+# Contabilizar incidencias del historial para el DNI activo
 faltas_injustificadas = 0
 total_minutos_tardanza = 0
+total_horas_extras_25 = 0.0
+total_horas_extras_35 = 0.0
 
 for reg in st.session_state.registros_tareo:
     if reg["DNI"] == dni_activo:
@@ -191,18 +228,35 @@ for reg in st.session_state.registros_tareo:
             faltas_injustificadas += 1
         elif reg["Condición"] == "Tardanza":
             total_minutos_tardanza += reg.get("Min_Tardanza", 0)
+        
+        # Sumar horas extras según su porcentaje
+        he = reg.get("Horas_Extras", 0.0)
+        pct = reg.get("Porcentaje_HE", 25)
+        if he > 0:
+            if pct == 25:
+                total_horas_extras_25 += he
+            else:
+                total_horas_extras_35 += he # u otros porcentajes agrupados
 
-# 3. Aplicar descuentos legales
+# Cálculo de valor hora y minuto
 valor_dia = sueldo_base / 30.0
-descuento_faltas = valor_dia * faltas_injustificadas
-
+valor_hora = sueldo_base / 240.0
 valor_minuto = sueldo_base / 14400.0
+
+descuento_faltas = valor_dia * faltas_injustificadas
 descuento_tardanzas = valor_minuto * total_minutos_tardanza
 
-sueldo_bruto_ajustado = sueldo_bruto_total - descuento_faltas - descuento_tardanzas
+# Pago de Horas Extras (Valor hora * (1 + porcentaje/100))
+pago_he_25 = total_horas_extras_25 * valor_hora * (1.25)
+pago_he_35 = total_horas_extras_35 * (valor_hora * 1.35)
+total_pago_he = pago_he_25 + pago_he_35
+
+# Sueldo Bruto Ajustado
+sueldo_bruto_ajustado = sueldo_bruto_total - descuento_faltas - descuento_tardanzas + total_pago_he
 if sueldo_bruto_ajustado < 0:
     sueldo_bruto_ajustado = 0.0
 
+# Descuentos de Ley (Pensión y Seguro de Vida Ley aprox 0.6%)
 if "ONP" in sistema_pension:
     descuento_pension = sueldo_bruto_ajustado * 0.13
 elif "AFP" in sistema_pension:
@@ -210,19 +264,49 @@ elif "AFP" in sistema_pension:
 else:
     descuento_pension = 0.0
 
-sueldo_neto = sueldo_bruto_ajustado - descuento_pension
+descuento_seguro_vida = (sueldo_bruto_ajustado * 0.006) if seguro_vida_ley else 0.0
 
-# Mostrar métricas en pantalla
+sueldo_neto = sueldo_bruto_ajustado - descuento_pension - descuento_seguro_vida
+
+# Métricas en pantalla
 col_res1, col_res2, col_res3, col_res4, col_res5 = st.columns(5)
 col_res1.metric("Sueldo Bruto Inicial", f"S/ {sueldo_bruto_total:.2f}")
-col_res2.metric("Descto. Faltas", f"- S/ {descuento_faltas:.2f}", delta=f"{faltas_injustificadas} falta(s)", delta_color="inverse")
-col_res3.metric("Descto. Tardanzas", f"- S/ {descuento_tardanzas:.2f}", delta=f"{total_minutos_tardanza} min", delta_color="inverse")
-col_res4.metric("Descto. Ley Pensión", f"- S/ {descuento_pension:.2f}")
-col_res5.metric("Neto a Pagar", f"S/ {sueldo_neto:.2f}")
+col_res2.metric("Descuentos (Faltas/Tard.)", f"- S/ {(descuento_faltas + descuento_tardanzas):.2f}", delta=f"{faltas_injustificadas} faltas, {total_minutos_tardanza}m tard.", delta_color="inverse")
+col_res3.metric("Pago Horas Extras", f"+ S/ {total_pago_he:.2f}")
+col_res4.metric("Descuentos Ley (AFP/ONP/Seguro)", f"- S/ {(descuento_pension + descuento_seguro_vida):.2f}")
+col_res5.metric("Neto a Pagar Mensual", f"S/ {sueldo_neto:.2f}")
 
-st.info(f"💡 **Detalle de Descuentos para DNI {dni_activo}:** {faltas_injustificadas} falta(s) (Descuento: S/ {descuento_faltas:.2f}) | {total_minutos_tardanza} minuto(s) de tardanza (Descuento: S/ {descuento_tardanzas:.2f}).")
+st.write("---")
 
-st.markdown("#### Historial y Base de Datos del Tareo Registrado")
+# Módulo de Liquidación / Beneficios Truncos si el trabajador está cesado o se desea calcular
+st.markdown("#### 📐 Cálculo de Beneficios Sociales y Liquidación (CTS, Gratificación y Vacaciones Truncas)")
+if datos_trabajador['cese']:
+    st.warning(f"⚠️ El trabajador cuenta con fecha de cese registrada ({datos_trabajador['cese']}). Calculando liquidación final...")
+    # Estimación simple de liquidación basada en fechas
+    try:
+        from datetime import datetime
+        f_ing = datetime.strptime(datos_trabajador['ingreso'], "%Y-%m-%d")
+        f_ces = datetime.strptime(datos_trabajador['cese'], "%Y-%m-%d")
+        dias_serviciototal = (f_ces - f_ing).days
+        
+        # CTS Truncas semestrales aproximadas (May/Nov) y Gratificaciones (Jul/Dic)
+        cts_truncas = (sueldo_bruto_total / 12) * (dias_serviciototal % 365 / 30)
+        grati_truncas = (sueldo_bruto_total / 6) * (dias_serviciototal % 180 / 30)
+        vacaciones_truncas = (sueldo_base / 12) * (dias_serviciototal % 365 / 30)
+        
+        total_liquidacion = cts_truncas + grati_truncas + vacaciones_truncas
+        
+        col_liq1, col_liq2, col_liq3, col_liq4 = st.columns(4)
+        col_liq1.metric("CTS Truncas", f"S/ {cts_truncas:.2f}")
+        col_liq2.metric("Gratificación Trunca", f"S/ {grati_truncas:.2f}")
+        col_liq3.metric("Vacaciones Truncas", f"S/ {vacaciones_truncas:.2f}")
+        col_liq4.metric("Total Liquidación", f"S/ {total_liquidacion:.2f}")
+    except Exception as e:
+        st.error(f"No se pudo calcular la liquidación automática: {e}")
+else:
+    st.info("💡 Para calcular la liquidación por cese, edita el trabajador en la Sección 1 y marca la casilla '¿Trabajador cesado?' indicando su fecha de cese.")
+
+st.markdown("#### Historial de Tareo Registrado")
 
 if st.session_state.registros_tareo:
     df_tareo = pd.DataFrame(st.session_state.registros_tareo)
@@ -235,16 +319,15 @@ if st.session_state.registros_tareo:
         
     st.dataframe(df_mostrar, use_container_width=True)
     
-    # Botón para exportar los datos a un archivo CSV/Excel descargable
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df_tareo.to_excel(writer, index=False, sheet_name='Tareo_Consolidado')
     processed_data = output.getvalue()
 
     st.download_button(
-        label="📥 Descargar Reporte de Tareo en Excel",
+        label="📥 Descargar Reporte Completo de Tareo en Excel",
         data=processed_data,
-        file_name="reporte_tareo_planilla.xlsx",
+        file_name="reporte_tareo_y_planilla.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         type="primary"
     )
@@ -253,4 +336,4 @@ if st.session_state.registros_tareo:
         st.session_state.registros_tareo = []
         st.rerun()
 else:
-    st.info("Aún no hay registros de tareo acumulados en el sistema. Utiliza la Sección 2 para empezar a registrar asistencias.")
+    st.info("Aún no hay registros de tareo acumulados.")
