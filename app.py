@@ -67,18 +67,18 @@ def generar_pdf_boleta(datos_emp, resumen_pago, periodicidad):
     
     elements = []
     
-    elements.append(Paragraph("<b>AGROEXPORT S.A.C.</b>", title_style))
-    elements.append(Paragraph("RUC: 20123456789 | R.M. 091-92-TR", subtitle_style))
-    elements.append(Paragraph(f"<b>BOLETA DE PAGO - PAGO {periodicidad.upper()}</b>", ParagraphStyle('Sub', parent=title_style, fontSize=12, leading=15)))
+    elements.append(Paragraph("<b>AGROVISION PERÚ S.A.C.</b>", title_style))
+    elements.append(Paragraph("RUC: 20554556192 | R.M. 091-92-TR", subtitle_style))
+    elements.append(Paragraph(f"<b>BOLETA DE REMUNERACIONES - PAGO {periodicidad.upper()}</b>", ParagraphStyle('Sub', parent=title_style, fontSize=12, leading=15)))
     elements.append(Spacer(1, 10))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#0d6efd"), spaceAfter=10))
     
     data_trab = [
         [Paragraph("<b>DNI:</b>", bold_style), Paragraph(datos_emp['dni'], normal_style), Paragraph("<b>Fecha Ingreso:</b>", bold_style), Paragraph(datos_emp['ingreso'], normal_style)],
         [Paragraph("<b>Trabajador:</b>", bold_style), Paragraph(datos_emp['nombre'], normal_style), Paragraph("<b>Fecha Cese:</b>", bold_style), Paragraph(datos_emp['cese'] if datos_emp['cese'] else "ACTIVO", normal_style)],
-        [Paragraph(f"<b>Sueldo Base ({periodicidad}):</b>", bold_style), Paragraph(f"S/ {resumen_pago['sueldo_base_periodo']:.2f}", normal_style), Paragraph("<b>Asig. Familiar:</b>", bold_style), Paragraph(f"S/ {resumen_pago['asig_fam']:.2f}", normal_style)]
+        [Paragraph("<b>Cargo:</b>", bold_style), Paragraph("AUXILIAR ADMINISTRATIVO", normal_style), Paragraph("<b>Sistema Pensiones:</b>", bold_style), Paragraph(resumen_pago['pension_nombre'], normal_style)]
     ]
-    t_trab = Table(data_trab, colWidths=[110, 150, 100, 180])
+    t_trab = Table(data_trab, colWidths=[100, 160, 110, 170])
     t_trab.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8f9fa")),
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e9ecef")),
@@ -91,10 +91,10 @@ def generar_pdf_boleta(datos_emp, resumen_pago, periodicidad):
     
     data_conceptos = [
         [Paragraph("<b>CONCEPTO / INGRESOS</b>", bold_style), Paragraph("<b>MONTO (S/)</b>", bold_style), Paragraph("<b>DESCUENTOS / RETENCIONES</b>", bold_style), Paragraph("<b>MONTO (S/)</b>", bold_style)],
-        [Paragraph("Remuneración + Asig. Fam.", normal_style), Paragraph(f"{resumen_pago['sueldo_bruto_init']:.2f}", normal_style), Paragraph("Descuento Faltas / Tardanzas", normal_style), Paragraph(f"{resumen_pago['desc_asistencia']:.2f}", normal_style)],
-        [Paragraph("Horas Extras / Adicionales", normal_style), Paragraph(f"{resumen_pago['pago_adicional']:.2f}", normal_style), Paragraph("Pensiones (ONP / AFP)", normal_style), Paragraph(f"{resumen_pago['desc_pension']:.2f}", normal_style)],
-        [Paragraph("", normal_style), Paragraph("", normal_style), Paragraph("Seguro de Vida Ley", normal_style), Paragraph(f"{resumen_pago['desc_seguro']:.2f}", normal_style)],
-        [Paragraph("<b>TOTAL INGRESOS BRUTOS</b>", bold_style), Paragraph(f"<b>S/ {resumen_pago['sueldo_bruto_ajustado']:.2f}</b>", bold_style), Paragraph("<b>TOTAL DESCUENTOS</b>", bold_style), Paragraph(f"<b>S/ {resumen_pago['total_descuentos']:.2f}</b>", bold_style)]
+        [Paragraph("Salario por Días / Horas + DSO", normal_style), Paragraph(f"{resumen_pago['sueldo_bruto_init']:.2f}", normal_style), Paragraph("Descuento Faltas / Tardanzas", normal_style), Paragraph(f"{resumen_pago['desc_asistencia']:.2f}", normal_style)],
+        [Paragraph("Horas Extras / Adicionales", normal_style), Paragraph(f"{resumen_pago['pago_adicional']:.2f}", normal_style), Paragraph("Aporte Fondo Pensiones", normal_style), Paragraph(f"{resumen_pago['desc_pension']:.2f}", normal_style)],
+        [Paragraph("", normal_style), Paragraph("", normal_style), Paragraph("Seguro / Comisión AFP o Vida Ley", normal_style), Paragraph(f"{resumen_pago['desc_seguro']:.2f}", normal_style)],
+        [Paragraph("<b>TOTAL DE INGRESOS</b>", bold_style), Paragraph(f"<b>S/ {resumen_pago['sueldo_bruto_ajustado']:.2f}</b>", bold_style), Paragraph("<b>TOTAL DESCUENTOS</b>", bold_style), Paragraph(f"<b>S/ {resumen_pago['total_descuentos']:.2f}</b>", bold_style)]
     ]
     t_con = Table(data_conceptos, colWidths=[180, 90, 180, 90])
     t_con.setStyle(TableStyle([
@@ -107,7 +107,7 @@ def generar_pdf_boleta(datos_emp, resumen_pago, periodicidad):
     elements.append(t_con)
     elements.append(Spacer(1, 15))
     
-    data_neto = [[Paragraph("<b>NETO A RECIBIR:</b>", ParagraphStyle('N1', parent=bold_style, fontSize=11)), Paragraph(f"<b>S/ {resumen_pago['sueldo_neto']:.2f}</b>", ParagraphStyle('N2', parent=bold_style, fontSize=11, textColor=colors.HexColor("#0d6efd")))]]
+    data_neto = [[Paragraph("<b>NETO A PAGAR:</b>", ParagraphStyle('N1', parent=bold_style, fontSize=11)), Paragraph(f"<b>S/ {resumen_pago['sueldo_neto']:.2f}</b>", ParagraphStyle('N2', parent=bold_style, fontSize=11, textColor=colors.HexColor("#0d6efd")))]]
     t_neto = Table(data_neto, colWidths=[380, 160])
     t_neto.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#e7f1ff")),
@@ -133,8 +133,8 @@ def generar_pdf_liquidacion(datos_emp, liq):
     
     elements = []
     
-    elements.append(Paragraph("<b>AGROEXPORT S.A.C.</b>", title_style))
-    elements.append(Paragraph("RUC: 20123456789 | R.M. 091-92-TR", subtitle_style))
+    elements.append(Paragraph("<b>AGROVISION PERÚ S.A.C.</b>", title_style))
+    elements.append(Paragraph("RUC: 20554556192 | R.M. 091-92-TR", subtitle_style))
     elements.append(Paragraph("<b>LIQUIDACIÓN DE BENEFICIOS SOCIALES (TRUNCOS)</b>", ParagraphStyle('Sub', parent=title_style, fontSize=12, leading=15)))
     elements.append(Spacer(1, 10))
     elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#198754"), spaceAfter=10))
@@ -181,16 +181,10 @@ def generar_pdf_liquidacion(datos_emp, liq):
 # ---------------------------------------------------------
 if 'empleados_db' not in st.session_state:
     st.session_state.empleados_db = {
-        "73187638": {
-            "nombre": "Nathaly Pupuche", 
-            "sueldo": 1170.0, 
-            "ingreso": "2025-10-28",
-            "cese": "2026-07-20"
-        },
-        "75163440": {
-            "nombre": "Oliver Castillo Perales", 
+        "75163449": {
+            "nombre": "ÑANEZ POZO ANDREE GABRIEL", 
             "sueldo": 1230.0, 
-            "ingreso": "2023-01-10",
+            "ingreso": "2025-11-12",
             "cese": ""
         }
     }
@@ -242,7 +236,7 @@ with tab1:
                     for _, row in df_carga.iterrows():
                         dni_val = str(row[col_dni]).strip()
                         nom_val = str(row[col_nom]).strip()
-                        sue_val = float(row[col_sue]) if col_sue and pd.notna(row[col_sue]) else 1025.0
+                        sue_val = float(row[col_sue]) if col_sue and pd.notna(row[col_sue]) else 1230.0
                         ing_val = parsear_fecha_flexible(row[col_ing]) if col_ing else str(date.today())
                         ces_val = parsear_fecha_flexible(row[col_ces]) if col_ces else ""
                         
@@ -264,10 +258,10 @@ with tab1:
         st.markdown("#### ➕ Registro / Edición Manual")
         nuevo_dni = st.text_input("DNI (8 dígitos):", max_chars=8, key="reg_dni")
         nuevo_nombre = st.text_input("Nombre Completo:", key="reg_nom")
-        nuevo_sueldo = st.number_input("Sueldo Base (S/):", min_value=1025.0, value=1170.0, step=50.0, key="reg_sue")
-        fecha_ingreso_reg = st.date_input("Fecha de Ingreso:", value=date(2025, 10, 28), key="reg_ing")
-        tiene_cese = st.checkbox("¿Trabajador cesado?", key="chk_cese", value=True)
-        fecha_cese_reg = st.date_input("Fecha de Cese / Salida:", value=date(2026, 7, 20), key="reg_ces") if tiene_cese else ""
+        nuevo_sueldo = st.number_input("Sueldo Base (S/):", min_value=1025.0, value=1230.0, step=50.0, key="reg_sue")
+        fecha_ingreso_reg = st.date_input("Fecha de Ingreso:", value=date(2025, 11, 12), key="reg_ing")
+        tiene_cese = st.checkbox("¿Trabajador cesado?", key="chk_cese", value=False)
+        fecha_cese_reg = st.date_input("Fecha de Cese / Salida:", value=date.today(), key="reg_ces") if tiene_cese else ""
         
         if st.button("Guardar / Actualizar Trabajador"):
             if nuevo_dni and len(nuevo_dni) == 8 and nuevo_nombre:
@@ -403,7 +397,7 @@ with tab2:
 # PESTAÑA 3: RESUMEN MONETARIO Y DESCARGA DE PDF INDIVIDUAL
 # ---------------------------------------------------------
 with tab3:
-    st.markdown("### Cálculo Monetario y Emisión de Documentos en PDF")
+    st.markdown("### Cálculo Monetario por Periodo y Emisión de Boleta en PDF")
     
     if lista_opciones:
         seleccion_calculo = st.selectbox("Seleccione el colaborador a consultar:", lista_opciones, key="sel_calculo_mon")
@@ -413,72 +407,54 @@ with tab3:
         
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
-            periodicidad = st.selectbox("Periodicidad de Pago:", ["Mensual", "Quincenal", "Semanal"], key="per_pago")
+            periodicidad = st.selectbox("Periodicidad de Pago:", ["Semanal", "Quincenal", "Mensual"], key="per_pago")
+            tarifa_diaria = st.number_input("Tarifa Jornal / Día (S/):", min_value=30.0, value=41.0, step=1.0)
         with col_c2:
-            asig_fam_check = st.checkbox("Incluir Asig. Familiar (Proporcional)", value=False, key="af_calc")
+            asig_fam_check = st.checkbox("Incluir Asignación Familiar", value=False, key="af_calc")
             seguro_vida_check = st.checkbox("Aplica Seguro de Vida Ley", value=True, key="sv_calc")
         with col_c3:
-            sistema_pension = st.selectbox("Sistema de Pensiones:", ["ONP (13%)", "AFP Integra (Flujo)", "AFP Prima (Flujo)", "AFP Habitat (Flujo)", "AFP Profuturo (Flujo)", "Exonerado"], key="p_calc")
+            sistema_pension = st.selectbox("Sistema de Pensiones:", ["AFP Integra (Flujo)", "AFP Prima (Flujo)", "AFP Habitat (Flujo)", "AFP Profuturo (Flujo)", "ONP (13%)", "Exonerado"], key="p_calc")
 
-        # FACTOR DE PROPORCIÓN SEGÚN PERIODICIDAD
-        sueldo_base_mensual = float(datos_emp["sueldo"])
-        monto_af_mensual = 102.50 if asig_fam_check else 0.0
+        # CÁLCULO DINÁMICO BASADO EN TAREO O TARIFA DIARIA
+        dias_efectivos = 6 if periodicidad == "Semanal" else (13 if periodicidad == "Quincenal" else 26)
         
-        if periodicidad == "Quincenal":
-            factor = 0.5
-            sueldo_base_periodo = sueldo_base_mensual * factor
-            monto_af_periodo = monto_af_mensual * factor
-        elif periodicidad == "Semanal":
-            factor = 0.25
-            sueldo_base_periodo = sueldo_base_mensual * factor
-            monto_af_periodo = monto_af_mensual * factor
-        else: # Mensual
-            factor = 1.0
-            sueldo_base_periodo = sueldo_base_mensual
-            monto_af_periodo = monto_af_mensual
+        # Contar registros reales si existen
+        regs_colab = [r for r in st.session_state.registros_tareo if r["DNI"] == dni_calc]
+        if regs_colab:
+            dias_efectivos = sum(1 for r in regs_colab if r["Condición"] in ["Asistencia Normal (DSO / Labor)", "Trabajo en Día de Descanso (100%)"])
+            if dias_efectivos == 0:
+                dias_efectivos = 6 if periodicidad == "Semanal" else (13 if periodicidad == "Quincenal" else 26)
 
-        sueldo_bruto_init = sueldo_base_periodo + monto_af_periodo
-        
-        faltas_injustificadas = 0
-        total_minutos_tardanza = 0
-        total_he_25 = 0.0
-        total_he_35 = 0.0
-        dias_descanso_trab = 0
-        
-        for reg in st.session_state.registros_tareo:
-            if reg["DNI"] == dni_calc:
-                cond = reg["Condición"]
-                if cond == "Falta Injustificada": faltas_injustificadas += 1
-                elif cond == "Tardanza": total_minutos_tardanza += reg.get("Min_Tardanza", 0)
-                elif cond == "Trabajo en Día de Descanso (100%)": dias_descanso_trab += 1
-                
-                he = reg.get("Horas_Extras", 0.0)
-                pct = reg.get("Porcentaje_HE", 25)
-                if he > 0:
-                    if pct == 25: total_he_25 += he
-                    else: total_he_35 += he
+        sueldo_bruto_init = dias_efectivos * tarifa_diaria
+        monto_af_periodo = (102.50 / 4 if periodicidad == "Semanal" else (102.50 / 2 if periodicidad == "Quincenal" else 102.50)) if asig_fam_check else 0.0
+        sueldo_bruto_init += monto_af_periodo
 
-        valor_dia = sueldo_base_mensual / 30.0
-        valor_hora = sueldo_base_mensual / 240.0
-        valor_minuto = sueldo_base_mensual / 14400.0
+        faltas_injustificadas = sum(1 for r in regs_colab if r["Condición"] == "Falta Injustificada")
+        total_minutos_tardanza = sum(r.get("Min_Tardanza", 0) for r in regs_colab)
         
-        desc_faltas = valor_dia * faltas_injustificadas
-        desc_tardanzas = valor_minuto * total_minutos_tardanza
-        desc_asistencia = desc_faltas + desc_tardanzas
+        valor_minuto = tarifa_diaria / 480.0
+        desc_asistencia = (tarifa_diaria / 8.0 * (total_minutos_tardanza / 60.0)) + (tarifa_diaria * faltas_injustificadas)
         
-        pago_he = (total_he_25 * valor_hora * 1.25) + (total_he_35 * valor_hora * 1.35)
-        pago_descanso = valor_dia * dias_descanso_trab
-        pago_adicional = pago_he + pago_descanso
-        
+        pago_adicional = 0.0 
         sueldo_bruto_ajustado = max(0.0, sueldo_bruto_init - desc_asistencia + pago_adicional)
         
-        desc_pension = sueldo_bruto_ajustado * 0.13 if "ONP" in sistema_pension else (sueldo_bruto_ajustado * 0.1115 if "AFP" in sistema_pension else 0.0)
-        desc_seguro = sueldo_bruto_ajustado * 0.006 if seguro_vida_check else 0.0
+        # Retenciones AFP / ONP
+        if "AFP" in sistema_pension:
+            desc_pension = sueldo_bruto_ajustado * 0.10     
+            desc_seguro = sueldo_bruto_ajustado * 0.0137    
+        elif "ONP" in sistema_pension:
+            desc_pension = sueldo_bruto_ajustado * 0.13
+            desc_seguro = 0.0
+        else:
+            desc_pension = 0.0
+            desc_seguro = 0.0
+
         total_descuentos = desc_asistencia + desc_pension + desc_seguro
-        sueldo_neto = sueldo_bruto_ajustado - desc_pension - desc_seguro
+        sueldo_neto = sueldo_bruto_ajustado - total_descuentos
 
         resumen_pago = {
-            "sueldo_base_periodo": sueldo_base_periodo,
+            "pension_nombre": sistema_pension,
+            "sueldo_base_periodo": sueldo_bruto_init,
             "sueldo_bruto_init": sueldo_bruto_init,
             "asig_fam": monto_af_periodo,
             "desc_asistencia": desc_asistencia,
@@ -493,10 +469,10 @@ with tab3:
         st.markdown("---")
         st.markdown(f"#### 💵 Resumen de Pago ({periodicidad}) del Colaborador")
         col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-        col_m1.metric(f"Bruto Inicial ({periodicidad})", f"S/ {sueldo_bruto_init:.2f}")
+        col_m1.metric(f"Total Ingresos ({periodicidad})", f"S/ {sueldo_bruto_init:.2f}")
         col_m2.metric("Descuentos Asistencia", f"- S/ {desc_asistencia:.2f}")
         col_m3.metric("Adicionales", f"+ S/ {pago_adicional:.2f}")
-        col_m4.metric("Descuentos Ley", f"- S/ {(desc_pension + desc_seguro):.2f}")
+        col_m4.metric("Descuentos Ley", f"- S/ {total_descuentos:.2f}")
         col_m5.metric(f"Neto a Pagar ({periodicidad})", f"S/ {sueldo_neto:.2f}")
 
         pdf_boleta_bytes = generar_pdf_boleta(datos_emp, resumen_pago, periodicidad)
@@ -518,12 +494,13 @@ with tab3:
                 f_ces = datetime.strptime(datos_emp['cese'], "%Y-%m-%d")
                 dias_totales_servicio = (f_ces - f_ing).days + 1
                 
-                rem_computable_cts = sueldo_base_mensual + monto_af_mensual + ((sueldo_base_mensual + monto_af_mensual) / 6.0)
+                sueldo_base_mensual = float(datos_emp["sueldo"])
+                rem_computable_cts = sueldo_base_mensual + (sueldo_base_mensual / 6.0)
                 dias_semestre_cts = dias_totales_servicio % 180 if dias_totales_servicio > 180 else dias_totales_servicio
                 cts_truncas = (rem_computable_cts / 360.0) * dias_semestre_cts
                 
                 meses_completos_grati = (f_ces.month - 1) % 6
-                grati_truncas = ((sueldo_base_mensual + monto_af_mensual) / 6.0) * meses_completos_grati + ((sueldo_base_mensual + monto_af_mensual) / 180.0) * f_ces.day
+                grati_truncas = (sueldo_base_mensual / 6.0) * meses_completos_grati + (sueldo_base_mensual / 180.0) * f_ces.day
                 bonif_ley_grati = grati_truncas * 0.09
                 grati_total = grati_truncas + bonif_ley_grati
                 
