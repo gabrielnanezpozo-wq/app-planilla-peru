@@ -174,3 +174,10 @@ with col_t2:
         horas_trabajadas = 8.0
         minutos_tardanza_ingresados = st.number_input("Minutos de tardanza:", min_value=1, max_value=300, value=15, step=1)
     elif estado_asistencia == "Trabajo en Día de Descanso (100%)":
+        horas_trabajadas = st.number_input("Horas laboradas en día libre:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
+        st.info("ℹ️ Generará pago con sobretasa del 100%.")
+    else:
+        horas_trabajadas = st.number_input("Horas laboradas:", min_value=0.0, max_value=12.0, value=8.0, step=0.5)
+        
+    with st.expander("➕ Registrar Horas Extras en este día"):
+        horas_extras_ingresadas = st.number_input("Cantidad de Horas Extras:", min_value=0.0, max_value=4.0, value=0.0,
