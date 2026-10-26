@@ -15,12 +15,9 @@ st.set_page_config(
 # =========================================================
 st.markdown("""
     <style>
-    /* Fondo general y tipografía */
     .main {
         background-color: #f8f9fa;
     }
-    
-    /* Estilo para las tarjetas o contenedores */
     .card {
         background-color: #ffffff;
         padding: 25px;
@@ -29,8 +26,6 @@ st.markdown("""
         margin-bottom: 20px;
         border: 1px solid #e9ecef;
     }
-    
-    /* Botones principales personalizados */
     .stButton>button {
         background-color: #0d6efd;
         color: white;
@@ -44,8 +39,6 @@ st.markdown("""
         background-color: #0b5ed7;
         box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
     }
-    
-    /* Títulos y cabeceras */
     h1, h2, h3 {
         color: #212529;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -273,7 +266,6 @@ with tab3:
     st.markdown("### Resumen Mensual y Liquidación Profesional")
     
     if lista_opciones:
-        # Usamos el mismo colaborador activo seleccionado
         dni_activo_l = seleccion_actual.split(" - ")[0]
         datos_trabajador_l = st.session_state.empleados_db[dni_activo_l]
         
@@ -314,79 +306,4 @@ with tab3:
         valor_minuto = sueldo_base / 14400.0
         
         descuento_faltas = valor_dia * faltas_injustificadas
-        descuento_tardanzas = valor_minuto * total_minutos_tardanza
-        total_pago_he = (total_horas_extras_25 * valor_hora * 1.25) + (total_horas_extras_35 * valor_hora * 1.35)
-        pago_descanso_trabajado = valor_dia * dias_descanso_trabajados
-        
-        sueldo_bruto_ajustado = max(0.0, sueldo_bruto_total - descuento_faltas - descuento_tardanzas + total_pago_he + pago_descanso_trabajado)
-        
-        descuento_pension = sueldo_bruto_ajustado * 0.13 if "ONP" in sistema_pension else (sueldo_bruto_ajustado * 0.1115 if "AFP" in sistema_pension else 0.0)
-        descuento_seguro_vida = sueldo_bruto_ajustado * 0.006 if seguro_vida_ley else 0.0
-        sueldo_neto = sueldo_bruto_ajustado - descuento_pension - descuento_seguro_vida
-        
-        st.markdown("---")
-        st.markdown("#### 💵 Simulación de Pago Mensual")
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Sueldo Bruto Inicial", f"S/ {sueldo_bruto_total:.2f}")
-        m2.metric("Descuentos", f"- S/ {(descuento_faltas + descuento_tardanzas):.2f}", delta=f"{faltas_injustificadas} faltas, {total_minutos_tardanza}m tard.", delta_color="inverse")
-        m3.metric("Adicionales (HE/Desc)", f"+ S/ {(total_pago_he + pago_descanso_trabajado):.2f}")
-        m4.metric("Descuentos Ley", f"- S/ {(descuento_pension + descuento_seguro_vida):.2f}")
-        m5.metric("Neto a Pagar Mensual", f"S/ {sueldo_neto:.2f}")
-        
-        st.markdown("---")
-        st.markdown("#### 📐 Simulación de Liquidación y Beneficios Truncos (Normativa Peruana)")
-        if datos_trabajador_l['cese']:
-            st.warning(f"⚠️ El trabajador cuenta con fecha de cese ({datos_trabajador_l['cese']}). Calculando liquidación final...")
-            try:
-                f_ing = datetime.strptime(datos_trabajador_l['ingreso'], "%Y-%m-%d")
-                f_ces = datetime.strptime(datos_trabajador_l['cese'], "%Y-%m-%d")
-                dias_totales_servicio = (f_ces - f_ing).days + 1
-                
-                rem_computable_cts = sueldo_bruto_total + (sueldo_bruto_total / 6.0)
-                dias_semestre_cts = dias_totales_servicio % 180 if dias_totales_servicio > 180 else dias_totales_servicio
-                cts_truncas = (rem_computable_cts / 360.0) * dias_semestre_cts
-                
-                meses_completos_grati = (f_ces.month - 1) % 6
-                grati_truncas = (sueldo_bruto_total / 6.0) * meses_completos_grati + (sueldo_bruto_total / 180.0) * f_ces.day
-                bonif_ley_grati = grati_truncas * 0.09
-                vacaciones_truncas = (sueldo_base / 360.0) * (dias_totales_servicio % 365)
-                
-                total_liquidacion = cts_truncas + grati_truncas + bonif_ley_grati + vacaciones_truncas
-                
-                l1, l2, l3, l4 = st.columns(4)
-                l1.metric("CTS Truncas", f"S/ {cts_truncas:.2f}")
-                l2.metric("Gratificación + Bonif", f"S/ {(grati_truncas + bonif_ley_grati):.2f}")
-                l3.metric("Vacaciones Truncas", f"S/ {vacaciones_truncas:.2f}")
-                l4.metric("Total Liquidación Neta", f"S/ {total_liquidacion:.2f}")
-            except Exception as e:
-                st.error(f"Error en cálculo de liquidación: {e}")
-        else:
-            st.info("💡 Para simular la liquidación, marca la casilla de trabajador cesado con su fecha de cese en la Pestaña 1.")
-            
-        st.markdown("---")
-        st.markdown("#### 📥 Reportes de Tareo Consolidado")
-        if st.session_state.registros_tareo:
-            df_tareo = pd.DataFrame(st.session_state.registros_tareo)
-            st.dataframe(df_tareo, use_container_width=True)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_tareo.to_excel(writer, index=False, sheet_name='Tareo_Consolidado')
-            
-            st.download_button(
-                label="📥 Descargar Reporte Completo de Tareo en Excel",
-                data=output.getvalue(),
-                file_name="reporte_tareo_y_planilla.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary"
-            )
-        else:
-            st.info("No hay registros de tareo generados todavía.")
-
----
-
-<ElicitationsGroup>
-<FollowUp>
-¿Qué te parece este nuevo diseño con pestañas organizadas y un aspecto visual mucho más limpio y profesional para el usuario final?
-</FollowUp>
-</ElicitationsGroup>
+        descuento_tardanzas = valor_minuto
