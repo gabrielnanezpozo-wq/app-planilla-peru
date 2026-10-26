@@ -105,7 +105,7 @@ with col_t2:
         horas_trabajadas = 0.0
         st.warning(f"ℹ️ Incidencia '{estado_asistencia}': Horas automáticas en 0.0 hrs.")
     elif estado_asistencia == "Tardanza":
-        horas_trabajadas = 8.0  # Asiste pero con retraso
+        horas_trabajadas = 8.0
         minutos_tardanza_ingresados = st.number_input("Minutos de tardanza en el día:", min_value=1, max_value=300, value=15, step=1)
         st.info(f"⏱️ Se registrarán {minutos_tardanza_ingresados} min de tardanza.")
     else:
@@ -153,11 +153,9 @@ for reg in st.session_state.registros_tareo:
             total_minutos_tardanza += reg.get("Min_Tardanza", 0)
 
 # 3. Aplicar descuentos legales
-# - Descuento por faltas: (Sueldo base / 30) por cada falta
 valor_dia = sueldo_base / 30.0
 descuento_faltas = valor_dia * faltas_injustificadas
 
-# - Descuento por tardanzas: (Sueldo base / 14400) por cada minuto acumulado
 valor_minuto = sueldo_base / 14400.0
 descuento_tardanzas = valor_minuto * total_minutos_tardanza
 
@@ -191,4 +189,16 @@ st.markdown("#### Historial y Base de Datos del Tareo Registrado")
 if st.session_state.registros_tareo:
     df_tareo = pd.DataFrame(st.session_state.registros_tareo)
     
-    ver_todos =
+    ver_todos = st.checkbox("Mostrar registros de tareo de todos los colaboradores", value=True)
+    if not ver_todos and dni_activo:
+        df_mostrar = df_tareo[df_tareo["DNI"] == dni_activo]
+    else:
+        df_mostrar = df_tareo
+        
+    st.dataframe(df_mostrar, use_container_width=True)
+    
+    if st.button("🗑️ Limpiar Todo el Historial de Tareo"):
+        st.session_state.registros_tareo = []
+        st.rerun()
+else:
+    st.info("Aún no hay registros de tareo acumulados en el sistema. Utiliza la Sección 2 para empezar a registrar asistencias.")
